@@ -11,9 +11,9 @@ that can then be integrated into your site.
 
 ## Usage
 
-To run the project, first run `init`. This command will compile the `demo-rust`
-`package.json` which is necessary for PNPM to run correctly. Hopefully there's
-a better way to do this, but for now this is required or PNPM will fail
+To run the project, first run `pnpm run init`. This command will compile
+`demo-rust` which is necessary for the build to run correctly. Hopefully
+there's a better way to do this, but for now this is required or PNPM will fail
 complaining it can't find the `demo-rust` package.
 
 You can then go to `packages/frontend` and run `pnpm run start` to load a

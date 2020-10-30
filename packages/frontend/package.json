@@ -4,12 +4,15 @@
   "description": "create an app to consume rust-generated wasm packages",
   "main": "index.js",
   "scripts": {
-    "build": "webpack --config webpack.config.js",
+    "build": "webpack",
+    "build:prod": "NODE_ENV=production webpack",
+    "build:dev": "NODE_ENV=development webpack",
+    "clean": "rimraf dist",
     "start": "webpack serve"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HarryGifford/rust-wasm-demo.git",
+    "url": "git+https://github.com/HarryGifford/rust-wasm-webgl",
     "directory": "./packages/frontend"
   },
   "keywords": [
@@ -24,9 +27,10 @@
     "demo-rust": "workspace:*"
   },
   "devDependencies": {
+    "copy-webpack-plugin": "^6.2.1",
+    "ts-loader": "^8.0.7",
     "webpack": "^5.3.1",
     "webpack-cli": "^4.1.0",
-    "webpack-dev-server": "^3.11.0",
-    "copy-webpack-plugin": "^6.2.1"
+    "webpack-dev-server": "^3.11.0"
   }
 }
