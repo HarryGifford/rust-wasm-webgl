@@ -8,18 +8,24 @@ const main = async () => {
   const canvas = createCanvas(el);
   const gl = createGlContext(canvas);
   const ctx = new Context(canvas.width, canvas.height);
+  console.log("context", ctx);
 
   const [vertexShaderSrc, fragShaderSrc] = await Promise.all([
     loadText("main.vert"),
     loadText("main.frag"),
   ]);
-  ctx.init_shaders(gl, vertexShaderSrc, fragShaderSrc);
+  ctx.init(gl, vertexShaderSrc, fragShaderSrc);
   bindHandlers(canvas, {
-    mousemove: ctx.mousemove.bind(ctx),
-    resize: ctx.resize.bind(ctx),
+    mousemove: (x, y, clicked) => {
+      ctx.mousemove(gl, x, y, clicked);
+      ctx.render(gl);
+    },
+    resize: (width, height) => {
+      ctx.resize(gl, width, height);
+    },
   });
-  ctx.render(gl, canvas.width, canvas.height);
   (window as any).gl = gl;
+  ctx.render(gl);
 };
 
 main().catch(console.error);

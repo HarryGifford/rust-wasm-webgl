@@ -1,5 +1,7 @@
+mod camera;
 mod utils;
 
+use camera::*;
 use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
@@ -16,11 +18,13 @@ extern "C" {
 }
 
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct Context {
   pub width: u32,
   pub height: u32,
   pub mousex: Option<u32>,
   pub mousey: Option<u32>,
+  camera: Camera,
   program: Option<WebGlProgram>,
 }
 
@@ -28,11 +32,16 @@ pub struct Context {
 impl Context {
   #[wasm_bindgen(constructor)]
   pub fn new(width: u32, height: u32) -> Context {
+    let near_clip = 0.1;
+    let far_clip = 100.0;
+    let fovy = 0.78;
+    let aspect_ratio = (width as f32) / (height as f32);
     Context {
       width,
       height,
       mousex: None,
       mousey: None,
+      camera: Camera::new(aspect_ratio, fovy, near_clip, far_clip),
       program: None,
     }
   }
@@ -41,7 +50,7 @@ impl Context {
     gl.delete_program(self.program.as_ref());
   }
 
-  pub fn resize(&mut self, width: u32, height: u32) -> () {
+  pub fn resize(&mut self, _gl: &WebGl2RenderingContext, width: u32, height: u32) -> () {
     self.height = height;
     self.width = width;
     self.mousex = None;
@@ -49,7 +58,7 @@ impl Context {
     log(&format!("{} {}", width, height));
   }
 
-  pub fn mousemove(&mut self, x: u32, y: u32, clicked: bool) -> () {
+  pub fn mousemove(&mut self, _gl: &WebGl2RenderingContext, x: u32, y: u32, clicked: bool) -> () {
     if clicked {
       let (diffx, diffy) = match (self.mousex, self.mousey) {
         (None, None) => (0, 0),
@@ -58,11 +67,28 @@ impl Context {
       };
       self.mousex = Some(x);
       self.mousey = Some(y);
-      log(&format!("{} {}", diffx, diffy));
+      self.camera.translate_from_pixels(
+        (diffx as f32) / (self.width as f32),
+        (diffy as f32) / (self.height as f32),
+      );
+    } else if self.mousex.is_some() || self.mousey.is_some() {
+      self.mousex = None;
+      self.mousey = None;
     }
   }
 
-  pub fn init_shaders(
+  pub fn init(
+    &mut self,
+    gl: &WebGl2RenderingContext,
+    vert_src: &str,
+    frag_src: &str,
+  ) -> Result<(), JsValue> {
+    self.init_shaders(gl, vert_src, frag_src)?;
+    self.init_mesh(gl)?;
+    Ok(())
+  }
+
+  fn init_shaders(
     &mut self,
     gl: &WebGl2RenderingContext,
     vert_src: &str,
@@ -79,18 +105,12 @@ impl Context {
     Ok(())
   }
 
-  pub fn render(
-    &mut self,
-    gl: &WebGl2RenderingContext,
-    width: u32,
-    height: u32,
-  ) -> Result<(), JsValue> {
-    self.resize(width, height);
-
-    gl.use_program(self.program.as_ref());
-
+  fn init_mesh(&mut self, gl: &WebGl2RenderingContext) -> Result<(), JsValue> {
     let vertices: [f32; 12] = [
-      -1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 1.0, 1.0, 0.0, -1.0, 1.0, 0.0,
+      -0.5, -0.5, -1.0, //
+      1.0, -1.0, -1.0,  //
+      1.0, 1.0, -1.0,   //
+      -1.0, 1.0, -1.0,
     ];
     let indices: [u16; 6] = [0, 1, 3, 2, 3, 1];
 
@@ -123,15 +143,34 @@ impl Context {
         WebGl2RenderingContext::STATIC_DRAW,
       );
     }
+    Ok(())
+  }
+
+  pub fn render(&mut self, gl: &WebGl2RenderingContext) -> Result<(), JsValue> {
     gl.vertex_attrib_pointer_with_i32(0, 3, WebGl2RenderingContext::FLOAT, false, 0, 0);
     gl.enable_vertex_attrib_array(0);
 
-    gl.clear_color(0.0, 0.0, 0.0, 1.0);
-    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+    gl.clear_color(0.5, 0.75, 0.75, 1.0);
+    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+
+    // gl.use_program(None);
+    gl.use_program(self.program.as_ref());
+
+    self
+      .program
+      .as_ref()
+      .and_then(|program| gl.get_uniform_location(&program, "view_proj"))
+      .map(|view_proj_loc| {
+        gl.uniform_matrix4fv_with_f32_array(
+          Some(&view_proj_loc),
+          false,
+          self.camera.to_view_proj().as_slice(),
+        )
+      });
 
     gl.draw_elements_with_i32(
       WebGl2RenderingContext::TRIANGLES,
-      indices.len() as i32,
+      6 as i32,
       WebGl2RenderingContext::UNSIGNED_SHORT,
       0,
     );

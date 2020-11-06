@@ -16,7 +16,7 @@ float iter(vec2 pos)
 {
     vec2 x = pos;
     int iters = 0;
-    int max_iters = 100;
+    int max_iters = 5;
     while (x.x * x.x + x.y * x.y < 2.0 && iters < max_iters) {
         float xt = x.x * x.x - x.y * x.y + pos.x;
         x.y = 2.0 * x.x * x.y + pos.y;
